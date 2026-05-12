@@ -1,0 +1,12 @@
+{
+  "name": "sorteador",
+  "version": "1.0.0",
+  "description": "Meu projeto de sorteador",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
