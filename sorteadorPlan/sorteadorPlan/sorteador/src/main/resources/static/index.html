@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorteador SEPLAG-MT</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+        }
+
+        body{
+
+            font-family:'Inter', sans-serif;
+
+            background:
+                    radial-gradient(circle at top,
+                    rgba(3,36,92,0.45),
+                    transparent 40%),
+
+                    linear-gradient(
+                            135deg,
+                            #020817,
+                            #061630
+                    );
+
+            min-height:100vh;
+
+            display:flex;
+
+            justify-content:center;
+
+            align-items:center;
+
+            padding:30px;
+
+            color:white;
+        }
+
+        .container{
+
+            width:100%;
+
+            max-width:720px;
+
+            background:rgba(8,15,30,0.92);
+
+            border:1px solid rgba(255,255,255,0.08);
+
+            border-radius:28px;
+
+            padding:40px;
+
+            backdrop-filter:blur(10px);
+
+            box-shadow:
+                    0 20px 60px rgba(0,0,0,0.45),
+                    inset 0 1px 0 rgba(255,255,255,0.03);
+        }
+
+        .header{
+
+            text-align:center;
+
+            margin-bottom:35px;
+        }
+
+        .logo{
+
+            width:120px;
+
+            margin-bottom:20px;
+
+            filter:drop-shadow(
+                    0 0 15px rgba(255,255,255,0.05)
+            );
+        }
+
+        h1{
+
+            font-size:32px;
+
+            font-weight:700;
+
+            margin-bottom:8px;
+
+            letter-spacing:-1px;
+        }
+
+        .subtitle{
+
+            color:#94a3b8;
+
+            font-size:15px;
+        }
+
+        .upload-box{
+
+            border:2px dashed rgba(255,255,255,0.15);
+
+            background:rgba(255,255,255,0.03);
+
+            border-radius:20px;
+
+            padding:40px 20px;
+
+            text-align:center;
+
+            cursor:pointer;
+
+            transition:0.3s ease;
+        }
+
+        .upload-box:hover{
+
+            border-color:rgba(255,255,255,0.35);
+
+            background:rgba(255,255,255,0.05);
+        }
+
+        .upload-box.dragging{
+
+            border-color:#ffffff;
+
+            background:rgba(255,255,255,0.08);
+
+            transform:scale(1.01);
+        }
+
+        .upload-icon{
+
+            font-size:38px;
+
+            margin-bottom:12px;
+        }
+
+        .upload-title{
+
+            font-size:16px;
+
+            font-weight:600;
+        }
+
+        .upload-subtitle{
+
+            margin-top:6px;
+
+            font-size:13px;
+
+            color:#94a3b8;
+        }
+
+        input[type="file"]{
+            display:none;
+        }
+
+        #file-name{
+
+            margin-top:14px;
+
+            font-size:14px;
+
+            color:#cbd5e1;
+        }
+
+        textarea,
+        .settings input{
+
+            width:100%;
+
+            margin-top:18px;
+
+            background:rgba(255,255,255,0.04);
+
+            border:1px solid rgba(255,255,255,0.08);
+
+            border-radius:16px;
+
+            padding:16px;
+
+            color:white;
+
+            font-size:15px;
+
+            transition:0.3s;
+        }
+
+        textarea{
+
+            height:130px;
+
+            resize:none;
+        }
+
+        textarea:focus,
+        .settings input:focus{
+
+            outline:none;
+
+            border-color:rgba(255,255,255,0.25);
+
+            background:rgba(255,255,255,0.06);
+        }
+
+        .settings{
+
+            margin-top:25px;
+        }
+
+        .settings label{
+
+            font-size:14px;
+
+            color:#cbd5e1;
+        }
+
+        .options{
+
+            margin-top:20px;
+
+            display:flex;
+
+            flex-direction:column;
+
+            gap:12px;
+        }
+
+        .options label{
+
+            display:flex;
+
+            align-items:center;
+
+            gap:10px;
+
+            color:#e2e8f0;
+
+            cursor:pointer;
+
+            font-size:14px;
+        }
+
+        .options input{
+
+            width:16px;
+
+            height:16px;
+
+            accent-color:#ffffff;
+        }
+
+        button{
+
+            width:100%;
+
+            margin-top:30px;
+
+            border:none;
+
+            border-radius:18px;
+
+            padding:18px;
+
+            font-size:16px;
+
+            font-weight:600;
+
+            cursor:pointer;
+
+            transition:0.3s ease;
+
+            background:linear-gradient(
+                    135deg,
+                    #0f172a,
+                    #03245C
+            );
+
+            color:white;
+
+            box-shadow:
+                    0 10px 30px rgba(3,36,92,0.45);
+        }
+
+        button:hover{
+
+            transform:translateY(-2px);
+
+            box-shadow:
+                    0 15px 40px rgba(3,36,92,0.6);
+        }
+
+        .result{
+
+            margin-top:30px;
+
+            background:rgba(255,255,255,0.03);
+
+            border:1px solid rgba(255,255,255,0.08);
+
+            border-radius:20px;
+
+            padding:25px;
+
+            display:none;
+
+            animation:fadeIn 0.5s ease;
+        }
+
+        .result h3{
+
+            margin-bottom:18px;
+
+            font-size:20px;
+        }
+
+        .result ul{
+            list-style:none;
+        }
+
+        .result li{
+
+            background:rgba(255,255,255,0.04);
+
+            border:1px solid rgba(255,255,255,0.05);
+
+            padding:16px;
+
+            border-radius:14px;
+
+            margin-bottom:12px;
+
+            animation:slideUp 0.4s ease;
+
+            font-weight:500;
+        }
+
+        .result li:last-child{
+            margin-bottom:0;
+        }
+
+        @keyframes fadeIn{
+
+            from{
+
+                opacity:0;
+
+                transform:translateY(10px);
+            }
+
+            to{
+
+                opacity:1;
+
+                transform:translateY(0);
+            }
+        }
+
+        @keyframes slideUp{
+
+            from{
+
+                opacity:0;
+
+                transform:translateY(15px);
+            }
+
+            to{
+
+                opacity:1;
+
+                transform:translateY(0);
+            }
+        }
+
+        @media(max-width:768px){
+
+            .container{
+                padding:25px;
+            }
+
+            h1{
+                font-size:26px;
+            }
+
+            .logo{
+                width:95px;
+            }
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="header">
+
+        <!-- coloque logo.png na pasta static -->
+        <img src="logo.png" class="logo" alt="SEPLAG-MT">
+
+        <h1>Sorteador Inteligente</h1>
+
+        <p class="subtitle">
+            Sistema corporativo • SEPLAG-MT
+        </p>
+
+    </div>
+
+    <!-- UPLOAD -->
+    <div class="upload-box" id="drop-area">
+
+        <div class="upload-icon">
+            📂
+        </div>
+
+        <div class="upload-title">
+            Arraste sua planilha aqui
+        </div>
+
+        <div class="upload-subtitle">
+            ou clique para selecionar um arquivo
+        </div>
+
+        <input
+                type="file"
+                id="file"
+                accept=".xlsx,.xls,.csv,.txt"
+        >
+
+    </div>
+
+    <p id="file-name"></p>
+
+    <!-- INPUT MANUAL -->
+    <textarea
+            id="manualInput"
+            placeholder="Ou cole os nomes manualmente (um por linha)"
+    ></textarea>
+
+    <!-- CONFIG -->
+    <div class="settings">
+
+        <label>
+            Quantidade de vencedores
+        </label>
+
+        <input
+                type="number"
+                id="winnersCount"
+                value="1"
+                min="1"
+        >
+
+    </div>
+
+    <!-- OPÇÕES -->
+    <div class="options">
+
+        <label>
+            <input type="checkbox" id="removeDuplicates">
+            Remover nomes duplicados
+        </label>
+
+        <label>
+            <input type="checkbox" id="shuffle" checked>
+            Embaralhar participantes
+        </label>
+
+    </div>
+
+    <!-- BOTÃO -->
+    <button onclick="sortear()">
+        🎯 Realizar Sorteio
+    </button>
+
+    <!-- RESULTADO -->
+    <div class="result" id="result">
+
+        <h3>
+            🏆 Resultado do Sorteio
+        </h3>
+
+        <ul id="resultList"></ul>
+
+    </div>
+
+</div>
+
+<script>
+
+    const dropArea =
+        document.getElementById("drop-area");
+
+    const fileInput =
+        document.getElementById("file");
+
+    const fileName =
+        document.getElementById("file-name");
+
+    // clique
+    dropArea.addEventListener("click", () => {
+
+        fileInput.click();
+
+    });
+
+    // selecionar arquivo
+    fileInput.addEventListener("change", () => {
+
+        if (fileInput.files.length > 0) {
+
+            fileName.textContent =
+                fileInput.files[0].name;
+        }
+
+    });
+
+    // drag
+    dropArea.addEventListener("dragover", (e) => {
+
+        e.preventDefault();
+
+        dropArea.classList.add("dragging");
+
+    });
+
+    // sair drag
+    dropArea.addEventListener("dragleave", () => {
+
+        dropArea.classList.remove("dragging");
+
+    });
+
+    // drop
+    dropArea.addEventListener("drop", (e) => {
+
+        e.preventDefault();
+
+        dropArea.classList.remove("dragging");
+
+        const files = e.dataTransfer.files;
+
+        if (files.length > 0) {
+
+            fileInput.files = files;
+
+            fileName.textContent = files[0].name;
+        }
+
+    });
+
+    // sorteio
+    async function sortear() {
+
+        const file =
+            fileInput.files[0];
+
+        const manualInput =
+            document
+                .getElementById("manualInput")
+                .value
+                .trim();
+
+        const winnersCount =
+            parseInt(
+                document
+                    .getElementById("winnersCount")
+                    .value
+            );
+
+        // validação
+        if (
+            isNaN(winnersCount) ||
+            winnersCount < 1
+        ) {
+
+            alert(
+                "Informe uma quantidade válida."
+            );
+
+            return;
+        }
+
+        let winners = [];
+
+        // =====================
+        // BACKEND
+        // =====================
+        if (file) {
+
+            try {
+
+                const formData =
+                    new FormData();
+
+                formData.append(
+                    "file",
+                    file
+                );
+
+                formData.append(
+                    "winnersCount",
+                    winnersCount
+                );
+
+                const response =
+                    await fetch("/api/sort", {
+
+                        method:"POST",
+
+                        body:formData
+
+                    });
+
+                if (!response.ok) {
+
+                    const errorText =
+                        await response.text();
+
+                    console.error(errorText);
+
+                    alert(
+                        "Erro ao processar planilha."
+                    );
+
+                    return;
+                }
+
+                const data =
+                    await response.json();
+
+                winners =
+                    data.winners || [];
+
+            } catch (error) {
+
+                console.error(error);
+
+                alert(
+                    "Erro de conexão com servidor."
+                );
+
+                return;
+            }
+
+        }
+
+            // =====================
+            // MANUAL
+        // =====================
+        else if (manualInput) {
+
+            let names =
+                manualInput
+                    .split("\n")
+                    .map(n => n.trim())
+                    .filter(n => n);
+
+            if (
+                document
+                    .getElementById("removeDuplicates")
+                    .checked
+            ) {
+
+                names =
+                    [...new Set(names)];
+            }
+
+            if (
+                document
+                    .getElementById("shuffle")
+                    .checked
+            ) {
+
+                names.sort(
+                    () => Math.random() - 0.5
+                );
+            }
+
+            winners =
+                names.slice(
+                    0,
+                    winnersCount
+                );
+
+        }
+
+        else {
+
+            alert(
+                "Envie um arquivo ou insira nomes."
+            );
+
+            return;
+        }
+
+        // nenhum vencedor
+        if (winners.length === 0) {
+
+            alert(
+                "Nenhum participante encontrado."
+            );
+
+            return;
+        }
+
+        mostrarResultado(winners);
+    }
+
+    // resultado
+    function mostrarResultado(winners) {
+
+        const resultDiv =
+            document.getElementById("result");
+
+        const list =
+            document.getElementById("resultList");
+
+        list.innerHTML = "";
+
+        resultDiv.style.display = "block";
+
+        winners.forEach((name, i) => {
+
+            setTimeout(() => {
+
+                const li =
+                    document.createElement("li");
+
+                li.textContent =
+                    `🏆 ${i + 1}º Lugar — ${name}`;
+
+                list.appendChild(li);
+
+            }, i * 350);
+
+        });
+    }
+
+</script>
+
+</body>
+</html>
