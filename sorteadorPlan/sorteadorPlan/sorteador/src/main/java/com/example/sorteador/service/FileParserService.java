@@ -10,7 +10,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class FileParserService {
@@ -32,15 +34,152 @@ public class FileParserService {
         }
 
         if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
-            return parseExcel(file);
+
+            // google forms
+            if (isGoogleForms(file)) {
+                return parseExcel(file);
+            }
+
+            // excel padrão
+            return parseDefaultExcel(file);
         }
 
         throw new RuntimeException("Formato não suportado.");
     }
 
+    private List<String> parseDefaultExcel(MultipartFile file) {
+
+        Set<String> names = new LinkedHashSet<>();
+
+        try (InputStream input = file.getInputStream();
+             Workbook workbook = WorkbookFactory.create(input)) {
+
+            Sheet bestSheet = findBestSheet(workbook);
+
+            if (bestSheet == null) {
+                throw new RuntimeException(
+                        "Nenhuma aba válida encontrada."
+                );
+            }
+
+            String[] possibleNames = {
+                    "nome",
+                    "nome completo",
+                    "seu nome",
+                    "digite seu nome",
+                    "nome e sobrenome",
+                    "colaborador",
+                    "funcionario",
+                    "funcionário",
+                    "servidor",
+                    "empregado",
+                    "participante",
+                    "cliente",
+                    "usuario",
+                    "usuário",
+                    "integrante"
+            };
+
+            for (Row row : bestSheet) {
+
+                if (row == null) {
+                    continue;
+                }
+
+                boolean isNameRow = false;
+
+                // detecta linha de nomes
+
+                for (Cell cell : row) {
+
+                    String value = cleanText(
+                            formatter.formatCellValue(cell)
+                    ).toLowerCase();
+
+                    for (String keyword : possibleNames) {
+
+                        if (value.contains(keyword)) {
+                            isNameRow = true;
+                            break;
+                        }
+                    }
+
+                    if (isNameRow) {
+                        break;
+                    }
+                }
+
+                // lê apenas a linha correta
+
+                if (isNameRow) {
+
+                    for (Cell cell : row) {
+
+                        if (cell == null) {
+                            continue;
+                        }
+
+                        String value = cleanText(
+                                formatter.formatCellValue(cell)
+                        );
+
+                        if (isValidName(value)) {
+                            names.add(value);
+                        }
+                    }
+
+                    break;
+                }
+            }
+
+            return new ArrayList<>(names);
+
+        } catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Erro ao processar planilha: " + e.getMessage()
+            );
+        }
+    }
+    private boolean isGoogleForms(MultipartFile file) {
+
+        try (InputStream input = file.getInputStream();
+             Workbook workbook = WorkbookFactory.create(input)) {
+
+            Sheet sheet = workbook.getSheetAt(0);
+
+            Row firstRow = sheet.getRow(0);
+
+            if (firstRow == null) {
+                return false;
+            }
+
+            for (Cell cell : firstRow) {
+
+                String value = cleanText(
+                        formatter.formatCellValue(cell)
+                ).toLowerCase();
+
+                if (value.contains("carimbo de data/hora")
+                        || value.contains("timestamp")
+                        || value.contains("endereço de e-mail")
+                        || value.contains("email")) {
+
+                    return true;
+                }
+            }
+
+            return false;
+
+        } catch (Exception e) {
+
+            return false;
+        }
+    }
+
     private List<String> parseText(MultipartFile file) {
 
-        List<String> names = new ArrayList<>();
+        Set<String> names = new LinkedHashSet<>();
 
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(
@@ -65,7 +204,7 @@ public class FileParserService {
                 }
             }
 
-            return names;
+            return new ArrayList<>(names);
 
         } catch (IOException e) {
 
@@ -79,7 +218,7 @@ public class FileParserService {
 
     private List<String> parseExcel(MultipartFile file) {
 
-        List<String> names = new ArrayList<>();
+        Set<String> names = new LinkedHashSet<>();
 
         try (InputStream input = file.getInputStream();
              Workbook workbook = WorkbookFactory.create(input)) {
@@ -104,7 +243,7 @@ public class FileParserService {
                 );
             }
 
-            int startRow = 0;
+            int startRow;
 
             boolean hasHeader = hasHeaderRow(headerRow);
 
@@ -119,8 +258,6 @@ public class FileParserService {
                 Row row = bestSheet.getRow(i);
 
                 if (row == null) continue;
-
-                // evita erro em linhas com poucas colunas
 
                 if (nameColumn >= row.getLastCellNum()) {
                     continue;
@@ -139,7 +276,7 @@ public class FileParserService {
                 }
             }
 
-            return names;
+            return new ArrayList<>(names);
 
         } catch (Exception e) {
 
@@ -209,9 +346,6 @@ public class FileParserService {
                 }
             }
 
-            // fallback inteligente:
-            // encontrou uma linha que parece tabela
-
             if (filledCells >= 2) {
                 return row;
             }
@@ -225,6 +359,9 @@ public class FileParserService {
         String[] possibleNames = {
                 "nome",
                 "nome completo",
+                "seu nome",
+                "digite seu nome",
+                "nome e sobrenome",
                 "colaborador",
                 "funcionario",
                 "funcionário",
@@ -237,8 +374,7 @@ public class FileParserService {
                 "integrante"
         };
 
-        // PRIMEIRA TENTATIVA:
-        // procura pelo cabeçalho
+        // procura cabeçalhoF
 
         for (Cell cell : headerRow) {
 
@@ -254,7 +390,6 @@ public class FileParserService {
             }
         }
 
-        // SEGUNDA TENTATIVA:
         // inferência inteligente
 
         int bestColumn = -1;
@@ -292,17 +427,22 @@ public class FileParserService {
                 // penalizações
 
                 if (normalized.contains("@")) {
-                    score -= 10;
+                    score -= 15;
                     continue;
                 }
 
                 if (normalized.matches("\\d+")) {
-                    score -= 8;
+                    score -= 10;
                     continue;
                 }
 
                 if (normalized.matches(".*\\d{2}/\\d{2}/\\d{4}.*")) {
-                    score -= 8;
+                    score -= 10;
+                    continue;
+                }
+
+                if (normalized.contains("http")) {
+                    score -= 10;
                     continue;
                 }
 
@@ -329,7 +469,7 @@ public class FileParserService {
             }
         }
 
-        // fallback final
+        // fallback
 
         if (bestColumn == -1) {
             return 0;
@@ -347,6 +487,7 @@ public class FileParserService {
         return value
                 .replace("\uFEFF", "")
                 .replace(":", "")
+                .replace("\"", "")
                 .trim();
     }
 
@@ -380,6 +521,28 @@ public class FileParserService {
 
         if (value.contains("@")) return false;
 
+        // ignora links
+
+        if (normalized.contains("http")) return false;
+
+        // ignora datas
+
+        if (normalized.matches(".*\\d{2}/\\d{2}/\\d{4}.*")) return false;
+
+        // ignora palavras comuns
+
+        if (normalized.equals("sim")) return false;
+
+        if (normalized.equals("não")) return false;
+
+        if (normalized.equals("nao")) return false;
+
+        if (normalized.equals("ok")) return false;
+
+        if (normalized.equals("confirmado")) return false;
+
+        if (normalized.equals("presente")) return false;
+
         // tamanho mínimo
 
         if (value.length() < 2) return false;
@@ -395,11 +558,27 @@ public class FileParserService {
 
         value = cleanText(value);
 
-        if (value.contains("@")) return false;
+        String normalized = value.toLowerCase();
 
-        if (value.matches("\\d+")) return false;
+        if (normalized.contains("@")) return false;
 
-        if (value.matches(".*\\d{2}/\\d{2}/\\d{4}.*")) return false;
+        if (normalized.matches("\\d+")) return false;
+
+        if (normalized.matches(".*\\d{2}/\\d{2}/\\d{4}.*")) return false;
+
+        if (normalized.contains("http")) return false;
+
+        if (normalized.equals("sim")) return false;
+
+        if (normalized.equals("não")) return false;
+
+        if (normalized.equals("nao")) return false;
+
+        if (normalized.equals("ok")) return false;
+
+        if (normalized.equals("confirmado")) return false;
+
+        if (normalized.equals("presente")) return false;
 
         return value.length() >= 3;
     }
